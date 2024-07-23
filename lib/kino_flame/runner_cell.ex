@@ -6,7 +6,7 @@ defmodule KinoFLAME.RunnerCell do
   use Kino.SmartCell, name: "FLAME runner cell"
 
   @text_fields ["name"]
-  @number_fields ["min", "max", "max_concurrency"] ++ ["fly_cpus", "fly_memory_gb"]
+  @number_fields ["min", "max", "max_concurrency"] ++ ["fly_cpus", "fly_memory_gb", "fly_gpus"]
 
   @impl true
   def init(attrs, ctx) do
@@ -18,7 +18,8 @@ defmodule KinoFLAME.RunnerCell do
       "fly_cpus" => attrs["fly_cpus"] || 1,
       "fly_cpu_kind" => attrs["fly_cpu_kind"] || "shared",
       "fly_memory_gb" => attrs["fly_memory_gb"] || 1,
-      "fly_gpu_kind" => attrs["fly_gpu_kind"]
+      "fly_gpu_kind" => attrs["fly_gpu_kind"],
+      "fly_gpus" => attrs["fly_gpus"]
     }
 
     {:ok, assign(ctx, fields: fields)}
@@ -78,6 +79,16 @@ defmodule KinoFLAME.RunnerCell do
   end
 
   defp to_quoted(attrs) do
+    specs_opts =
+      [
+        cpu_kind: attrs["fly_cpu_kind"],
+        cpus: attrs["fly_cpus"],
+        memory_mb: attrs["fly_memory_gb"] * 1024,
+        gpu_kind: attrs["fly_gpu_kind"],
+        gpus: attrs["fly_gpus"]
+      ]
+      |> Enum.reject(&(elem(&1, 1) == nil))
+
     # TODO try changing FLAME to use /.fly/api instead of :token
     quote do
       Kino.start_child(
@@ -92,12 +103,11 @@ defmodule KinoFLAME.RunnerCell do
          track_resources: true,
          backend:
            {FLAME.FlyBackend,
-            cpu_kind: unquote(attrs["fly_cpu_kind"]),
-            cpus: unquote(attrs["fly_cpus"]),
-            memory_mb: unquote(attrs["fly_memory_gb"] * 1024),
-            gpu_kind: unquote(attrs["fly_gpu_kind"]),
-            token: System.fetch_env!("LB_FLY_API_TOKEN"),
-            env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()}}}
+            [
+              unquote_splicing(specs_opts),
+              token: System.fetch_env!("LB_FLY_API_TOKEN"),
+              env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()}
+            ]}}
       )
     end
   end

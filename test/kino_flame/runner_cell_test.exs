@@ -31,7 +31,6 @@ defmodule KinoFLAME.RunnerCellTest do
                      cpu_kind: "shared",
                      cpus: 1,
                      memory_mb: 1024,
-                     gpu_kind: nil,
                      token: System.fetch_env!("LB_FLY_API_TOKEN"),
                      env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()}}}
                )\
@@ -47,7 +46,8 @@ defmodule KinoFLAME.RunnerCellTest do
         "fly_cpu_kind" => "performance",
         "fly_cpus" => 2,
         "fly_memory_gb" => 2,
-        "fly_gpu_kind" => "a100-pcie-40gb"
+        "fly_gpu_kind" => "a100-pcie-40gb",
+        "fly_gpus" => 2,
       }
 
       {_kino, source} = start_smart_cell!(RunnerCell, attrs)
@@ -70,6 +70,7 @@ defmodule KinoFLAME.RunnerCellTest do
                      cpus: 2,
                      memory_mb: 2048,
                      gpu_kind: "a100-pcie-40gb",
+                     gpus: 2,
                      token: System.fetch_env!("LB_FLY_API_TOKEN"),
                      env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()}}}
                )\

@@ -156,6 +156,17 @@ export default function App({ ctx, payload }) {
             onChange={handleChange}
             options={FLY_GPU_KIND_OPTIONS}
           />
+          <div className="w-36">
+            <TextField
+              type="number"
+              name="fly_gpus"
+              label="GPUs"
+              value={fields.fly_gpus}
+              onChange={(event) => handleChange(event, false)}
+              onBlur={handleBlur}
+              min="1"
+            />
+          </div>
         </div>
       </div>
     </div>
