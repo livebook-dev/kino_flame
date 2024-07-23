@@ -47,7 +47,7 @@ defmodule KinoFLAME.RunnerCellTest do
         "fly_cpus" => 2,
         "fly_memory_gb" => 2,
         "fly_gpu_kind" => "a100-pcie-40gb",
-        "fly_gpus" => 2,
+        "fly_gpus" => 2
       }
 
       {_kino, source} = start_smart_cell!(RunnerCell, attrs)
