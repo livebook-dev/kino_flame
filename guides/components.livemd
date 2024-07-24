@@ -1,0 +1,13 @@
+# Components
+
+```elixir
+Mix.install([
+  {:kino_flame, "~> 0.1.0"}
+])
+```
+
+## Smart cells
+
+The following Smart cells are available:
+
+* **FLAME runner cell** - for starting a pool of runners to delegate computation to a separte machine
