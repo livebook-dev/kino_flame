@@ -54,7 +54,7 @@ export default function App({ ctx, payload }) {
       <div className="rounded-lg border border-gray-300 bg-[#fefefe]">
         <Header>
           <FieldWrapper>
-            <InlineLabel label="Start runner pool" />
+            <InlineLabel label="Start FLAME" />
             <TextField
               name="name"
               value={fields.name}
