@@ -23,6 +23,7 @@ defmodule KinoFLAME.RunnerCellTest do
                   min: 0,
                   max: 1,
                   max_concurrency: 10,
+                  boot_timeout: :timer.minutes(3),
                   idle_shutdown_after: :timer.minutes(1),
                   timeout: :infinity,
                   track_resources: true,
@@ -31,7 +32,6 @@ defmodule KinoFLAME.RunnerCellTest do
                      cpu_kind: "shared",
                      cpus: 1,
                      memory_mb: 1024,
-                     token: System.fetch_env!("LB_FLY_API_TOKEN"),
                      env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()}}}
                )\
                """
@@ -61,6 +61,7 @@ defmodule KinoFLAME.RunnerCellTest do
                   min: 2,
                   max: 3,
                   max_concurrency: 15,
+                  boot_timeout: :timer.minutes(3),
                   idle_shutdown_after: :timer.minutes(1),
                   timeout: :infinity,
                   track_resources: true,
@@ -71,7 +72,6 @@ defmodule KinoFLAME.RunnerCellTest do
                      memory_mb: 2048,
                      gpu_kind: "a100-pcie-40gb",
                      gpus: 2,
-                     token: System.fetch_env!("LB_FLY_API_TOKEN"),
                      env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()}}}
                )\
                """
