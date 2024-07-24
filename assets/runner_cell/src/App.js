@@ -17,6 +17,7 @@ const FLY_GPU_KIND_OPTIONS = [{ value: "", label: "None" }].concat(
 export default function App({ ctx, payload }) {
   const [fields, setFields] = useState(payload.fields);
   const [showHelpBox, setShowHelpBox] = useState(false);
+  const warning_type = payload.warning_type;
 
   useEffect(() => {
     ctx.handleEvent("update", ({ fields }) => {
@@ -51,6 +52,23 @@ export default function App({ ctx, payload }) {
 
   return (
     <div className="flex flex-col gap-4 font-sans">
+      {warning_type === "no_fly" && (
+        <MessageBox variant="warning">
+          Using FLAME Fly backend only works when running within the Fly
+          infrastructure. To use it, either use the Livebook Fly runtime or
+          deploy your Livebook as a Fly app.
+        </MessageBox>
+      )}
+      {warning_type === "no_fly_token" && (
+        <MessageBox variant="warning">
+          FLAME Fly backend expects the FLY_API_TOKEN environment variable to be
+          set, but none was found. If you are running Livebook as a Fly app, you
+          can set it as a secret:
+          <pre className="mt-2 p-4 whitespace-pre-wrap">
+            <code>fly secrets set FLY_API_TOKEN="$(fly auth token)"</code>
+          </pre>
+        </MessageBox>
+      )}
       <div className="rounded-lg border border-gray-300 bg-[#fefefe]">
         <Header>
           <FieldWrapper>
@@ -211,6 +229,22 @@ function HelpBox(_props) {
           </code>
         </pre>
       </p>
+    </div>
+  );
+}
+
+function MessageBox({ variant = "neutral", children }) {
+  return (
+    <div
+      className={classNames([
+        "rounded-lg border p-4 text-sm",
+        {
+          neutral: "border-gray-300 text-gray-700",
+          warning: "color-gray-900 border-yellow-600 bg-yellow-100",
+        }[variant],
+      ])}
+    >
+      {children}
     </div>
   );
 }

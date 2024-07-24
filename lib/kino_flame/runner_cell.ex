@@ -22,13 +22,14 @@ defmodule KinoFLAME.RunnerCell do
       "fly_gpus" => attrs["fly_gpus"]
     }
 
-    {:ok, assign(ctx, fields: fields)}
+    {:ok, assign(ctx, fields: fields, warning_type: warning_type())}
   end
 
   @impl true
   def handle_connect(ctx) do
     payload = %{
-      fields: ctx.assigns.fields
+      fields: ctx.assigns.fields,
+      warning_type: ctx.assigns.warning_type
     }
 
     {:ok, payload, ctx}
@@ -89,7 +90,10 @@ defmodule KinoFLAME.RunnerCell do
       ]
       |> Enum.reject(&(elem(&1, 1) == nil))
 
-    # TODO try changing FLAME to use /.fly/api instead of :token
+    # Note we use a longer :boot_timeout in case a CUDA-based Docker
+    # image is involved. Those images are generally large, so it takes
+    # a while to pull them, unless they are already in the Fly cache.
+
     quote do
       Kino.start_child(
         {FLAME.Pool,
@@ -98,6 +102,7 @@ defmodule KinoFLAME.RunnerCell do
          min: unquote(attrs["min"]),
          max: unquote(attrs["max"]),
          max_concurrency: unquote(attrs["max_concurrency"]),
+         boot_timeout: :timer.minutes(3),
          idle_shutdown_after: :timer.minutes(1),
          timeout: :infinity,
          track_resources: true,
@@ -105,10 +110,22 @@ defmodule KinoFLAME.RunnerCell do
            {FLAME.FlyBackend,
             [
               unquote_splicing(specs_opts),
-              token: System.fetch_env!("LB_FLY_API_TOKEN"),
               env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()}
             ]}}
       )
+    end
+  end
+
+  def warning_type() do
+    cond do
+      System.fetch_env("FLY_PRIVATE_IP") == :error ->
+        :no_fly
+
+      System.fetch_env("FLY_API_TOKEN") == :error ->
+        :no_fly_token
+
+      true ->
+        nil
     end
   end
 end
