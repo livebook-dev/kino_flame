@@ -177,7 +177,7 @@ function HelpBox(_props) {
   return (
     <div className="flex flex-col gap-5 border-b border-gray-200 p-4 text-sm text-gray-700">
       <p>
-        This smart cell starts a pool of runners using{" "}
+        This smart cell starts a{" "}
         <a
           href="https://github.com/phoenixframework/flame"
           target="_blank"
@@ -185,7 +185,7 @@ function HelpBox(_props) {
         >
           FLAME
         </a>
-        , allowing you to delegate computation to a separte machine. To learn
+        pool that delegates computation to a separate machines. To learn
         more about the configuration details, refer to{" "}
         <a
           href="https://hexdocs.pm/flame"
@@ -197,7 +197,7 @@ function HelpBox(_props) {
         .
       </p>
       <p>
-        Once a pool is started, you can execute code on a runner, as follows:
+        Once a pool is started, you can execute code on a separate machine as follows:
         <pre className="mt-2 p-4 bg-[#282c34] rounded-lg whitespace-pre-wrap">
           <code className="text-[#c8ccd4]">
             <span className="text-[#56b6c2]">FLAME</span>
