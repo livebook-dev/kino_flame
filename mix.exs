@@ -27,8 +27,7 @@ defmodule KinoFLAME.MixProject do
   defp deps do
     [
       {:kino, "~> 0.13"},
-      # TODO: bump once the next version is released
-      {:flame, github: "phoenixframework/flame"},
+      {:flame, "~> 0.3.0"},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end
