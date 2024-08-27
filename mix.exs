@@ -1,7 +1,7 @@
 defmodule KinoFLAME.MixProject do
   use Mix.Project
 
-  @version "0.1.1"
+  @version "0.1.2"
   @description "FLAME integration with Livebook"
 
   def project do
@@ -27,7 +27,7 @@ defmodule KinoFLAME.MixProject do
   defp deps do
     [
       {:kino, "~> 0.13"},
-      {:flame, "~> 0.3.0"},
+      {:flame, "~> 0.3"},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end
