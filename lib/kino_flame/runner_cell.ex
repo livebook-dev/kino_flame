@@ -19,20 +19,30 @@ defmodule KinoFLAME.RunnerCell do
       "fly_cpu_kind" => attrs["fly_cpu_kind"] || "shared",
       "fly_memory_gb" => attrs["fly_memory_gb"] || 1,
       "fly_gpu_kind" => attrs["fly_gpu_kind"],
-      "fly_gpus" => attrs["fly_gpus"]
+      "fly_gpus" => attrs["fly_gpus"],
+      "fly_envs" => attrs["fly_envs"] || []
     }
 
-    {:ok, assign(ctx, fields: fields, warning_type: warning_type())}
+    {:ok, assign(ctx, fields: fields, warning_type: warning_type(), all_envs: [])}
   end
 
   @impl true
   def handle_connect(ctx) do
     payload = %{
       fields: ctx.assigns.fields,
-      warning_type: ctx.assigns.warning_type
+      warning_type: ctx.assigns.warning_type,
+      all_envs: ctx.assigns.all_envs
     }
 
     {:ok, payload, ctx}
+  end
+
+  @impl true
+  def scan_binding(pid, _binding, _env) do
+    # We don't actually use the binding, but that's the best place to
+    # check env vars, in case another evaluation set those
+    all_envs = System.get_env() |> Map.keys() |> Enum.sort()
+    send(pid, {:scan_binding_result, all_envs})
   end
 
   @impl true
@@ -41,6 +51,16 @@ defmodule KinoFLAME.RunnerCell do
     ctx = update(ctx, :fields, &Map.merge(&1, updated_fields))
     broadcast_event(ctx, "update", %{"fields" => updated_fields})
     {:noreply, ctx}
+  end
+
+  @impl true
+  def handle_info({:scan_binding_result, all_envs}, ctx) do
+    if all_envs == ctx.assigns.all_envs do
+      {:noreply, ctx}
+    else
+      broadcast_event(ctx, "set_all_envs", %{"all_envs" => all_envs})
+      {:noreply, assign(ctx, all_envs: all_envs)}
+    end
   end
 
   defp to_updates(field, value) when field in @number_fields and is_binary(value) do
@@ -90,6 +110,22 @@ defmodule KinoFLAME.RunnerCell do
       ]
       |> Enum.reject(&(elem(&1, 1) == nil))
 
+    envs =
+      [
+        {"LIVEBOOK_COOKIE",
+         quote do
+           Node.get_cookie()
+         end}
+      ] ++
+        for env <- attrs["fly_envs"] do
+          {env,
+           quote do
+             System.fetch_env!(unquote(env))
+           end}
+        end
+
+    env = {:%{}, [], envs}
+
     # Note we use a longer :boot_timeout in case a CUDA-based Docker
     # image is involved. Those images are generally large, so it takes
     # a while to pull them, unless they are already in the Fly cache.
@@ -110,7 +146,7 @@ defmodule KinoFLAME.RunnerCell do
            {FLAME.FlyBackend,
             [
               unquote_splicing(specs_opts),
-              env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()}
+              env: unquote(env)
             ]}}
       )
     end

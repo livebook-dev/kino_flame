@@ -47,7 +47,8 @@ defmodule KinoFLAME.RunnerCellTest do
         "fly_cpus" => 2,
         "fly_memory_gb" => 2,
         "fly_gpu_kind" => "a100-pcie-40gb",
-        "fly_gpus" => 2
+        "fly_gpus" => 2,
+        "fly_envs" => ["MY_TOKEN"]
       }
 
       {_kino, source} = start_smart_cell!(RunnerCell, attrs)
@@ -72,7 +73,10 @@ defmodule KinoFLAME.RunnerCellTest do
                      memory_mb: 2048,
                      gpu_kind: "a100-pcie-40gb",
                      gpus: 2,
-                     env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()}}}
+                     env: %{
+                       "LIVEBOOK_COOKIE" => Node.get_cookie(),
+                       "MY_TOKEN" => System.fetch_env!("MY_TOKEN")
+                     }}}
                )\
                """
     end
@@ -87,5 +91,19 @@ defmodule KinoFLAME.RunnerCellTest do
 
     assert_smart_cell_update(kino, %{"min" => 5}, source)
     assert source =~ "min: 5"
+  end
+
+  test "when available env vars change notifies the client" do
+    {kino, _source} = start_smart_cell!(RunnerCell, %{})
+
+    System.put_env("TEST_NEW_ENV_VAR", "1")
+
+    env = Code.env_for_eval([])
+    RunnerCell.scan_binding(kino.pid, [], env)
+
+    push_event(kino, "update_field", %{"field" => "min", "value" => "5"})
+
+    assert_broadcast_event(kino, "set_all_envs", %{"all_envs" => all_envs})
+    assert "TEST_NEW_ENV_VAR" in all_envs
   end
 end
