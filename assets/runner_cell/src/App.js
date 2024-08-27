@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import { RiQuestionnaireLine, RiArrowDownSLine } from "@remixicon/react";
+import {
+  RiQuestionnaireLine,
+  RiArrowDownSLine,
+  RiCloseLine,
+} from "@remixicon/react";
 import classNames from "classnames";
 
 const FLY_CPU_KIND_OPTIONS = ["shared", "performance"].map((kind) => ({
@@ -16,12 +20,17 @@ const FLY_GPU_KIND_OPTIONS = [{ value: "", label: "None" }].concat(
 
 export default function App({ ctx, payload }) {
   const [fields, setFields] = useState(payload.fields);
+  const [allEnvs, setAllEnvs] = useState(payload.all_envs);
   const [showHelpBox, setShowHelpBox] = useState(false);
   const warning_type = payload.warning_type;
 
   useEffect(() => {
     ctx.handleEvent("update", ({ fields }) => {
       setFields((currentFields) => ({ ...currentFields, ...fields }));
+    });
+
+    ctx.handleEvent("set_all_envs", ({ all_envs }) => {
+      setAllEnvs(all_envs);
     });
   }, []);
 
@@ -37,17 +46,21 @@ export default function App({ ctx, payload }) {
         ? event.target.checked
         : event.target.value;
 
-    setFields({ ...fields, [field]: value });
-
-    if (push) {
-      pushUpdate(field, value);
-    }
+    handleFieldChange(field, value, push);
   }
 
   function handleBlur(event) {
     const field = event.target.name;
 
     pushUpdate(field, fields[field]);
+  }
+
+  function handleFieldChange(field, value, push = true) {
+    setFields({ ...fields, [field]: value });
+
+    if (push) {
+      pushUpdate(field, value);
+    }
   }
 
   return (
@@ -186,6 +199,16 @@ export default function App({ ctx, payload }) {
             />
           </div>
         </div>
+        <div className="w-full border-t border-gray-200" />
+        <div className="flex flex-wrap gap-2 p-4">
+          <MultiSelectField
+            name="fly_envs"
+            label="Env vars"
+            value={fields.fly_envs}
+            onChange={(value) => handleFieldChange("fly_envs", value)}
+            options={allEnvs.map((env) => ({ label: env, value: env }))}
+          />
+        </div>
       </div>
     </div>
   );
@@ -203,8 +226,8 @@ function HelpBox(_props) {
         >
           FLAME
         </a>
-        pool that delegates computation to a separate machines. To learn
-        more about the configuration details, refer to{" "}
+        pool that delegates computation to a separate machines. To learn more
+        about the configuration details, refer to{" "}
         <a
           href="https://hexdocs.pm/flame"
           target="_blank"
@@ -215,7 +238,8 @@ function HelpBox(_props) {
         .
       </p>
       <p>
-        Once a pool is started, you can execute code on a separate machine as follows:
+        Once a pool is started, you can execute code on a separate machine as
+        follows:
         <pre className="mt-2 p-4 bg-[#282c34] rounded-lg whitespace-pre-wrap">
           <code className="text-[#c8ccd4]">
             <span className="text-[#56b6c2]">FLAME</span>
@@ -305,6 +329,91 @@ function SelectField({
             <optgroup key={label} label={label}>
               {renderOptions(options)}
             </optgroup>
+          ))}
+        </select>
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+          <RiArrowDownSLine size={16} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MultiSelectField({
+  label = null,
+  value,
+  className,
+  options = [],
+  onChange,
+  ...props
+}) {
+  const availableOptions = options.filter(
+    (option) => !value.includes(option.value),
+  );
+
+  function labelForValue(value) {
+    const option = options.find((option) => option.value === value);
+
+    if (option) {
+      return option.label;
+    } else {
+      return value;
+    }
+  }
+
+  function handleSelectChange(event) {
+    const subvalue = event.target.value;
+    const newValue = value.concat([subvalue]).sort();
+    onChange && onChange(newValue);
+  }
+
+  function handleDelete(subvalue) {
+    const newValue = value.filter(
+      (otherSubvalue) => otherSubvalue !== subvalue,
+    );
+    onChange && onChange(newValue);
+  }
+
+  return (
+    <div className="flex flex-col min-w-36">
+      {label && (
+        <label className="color-gray-800 mb-0.5 block text-sm font-medium">
+          {label}
+        </label>
+      )}
+      <div
+        className={classNames([
+          "relative w-full min-h-[38px] flex rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 pr-0 text-sm text-gray-600 placeholder-gray-400",
+          className,
+        ])}
+      >
+        <div className="flex flex-wrap gap-1">
+          {value.map((value) => (
+            <div
+              key={value}
+              className="py-0.5 px-2 flex gap-1 items-center rounded-lg bg-gray-200"
+            >
+              <span>{labelForValue(value)}</span>
+              <button
+                className="rounded-lg hover:bg-gray-300"
+                onClick={() => handleDelete(value)}
+              >
+                <RiCloseLine size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <select
+          {...props}
+          value=""
+          onChange={handleSelectChange}
+          className="grow min-w-8 w-0 opacity-0 appearance-none focus:outline-none"
+        >
+          <option value="" disabled></option>
+          {availableOptions.map((option) => (
+            <option key={option.value || ""} value={option.value || ""}>
+              {option.label}
+            </option>
           ))}
         </select>
         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
