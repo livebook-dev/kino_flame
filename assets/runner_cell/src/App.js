@@ -240,7 +240,7 @@ function HelpBox(_props) {
       <p>
         On start, FLAME will package all of your notebook's dependencies and
         automatically synchronize modules defined within Livebook with remote
-        nodes. Note process state and application configuration are not
+        nodes. Note that process state and application configuration are not
         automatically carried to remote nodes.
       </p>
       <p>
