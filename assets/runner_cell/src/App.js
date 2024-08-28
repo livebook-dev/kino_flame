@@ -238,7 +238,13 @@ function HelpBox(_props) {
         .
       </p>
       <p>
-        Once a pool is started, you can execute code on a separate machine as
+        On start, FLAME will package all of your notebook's dependencies and
+        automatically synchronize modules defined within Livebook with remote
+        nodes. Note process state and application configuration are not
+        automatically carried to remote nodes.
+      </p>
+      <p>
+        Once a pool is started, it will you can execute code on a separate machine as
         follows:
         <pre className="mt-2 p-4 bg-[#282c34] rounded-lg whitespace-pre-wrap">
           <code className="text-[#c8ccd4]">
