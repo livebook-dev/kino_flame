@@ -37,7 +37,49 @@ defmodule KinoFLAME.RunnerCellTest do
                """
     end
 
-    test "restores source code from attrs" do
+    test "with empty attributes on Kubernetes" do
+      # We only set name to make sure it's deterministic
+      attrs = %{"name" => "runner"}
+      System.put_env("KUBERNETES_SERVICE_HOST", "some-value")
+
+      {_kino, source} = start_smart_cell!(RunnerCell, attrs)
+
+      assert source ==
+               ~s'''
+               import YamlElixir.Sigil
+
+               pod_template = ~y"""
+               apiVersion: v1
+               kind: Pod
+               metadata:
+                 generateName: livebook-flame-runner-
+               spec:
+                 containers:
+                   - name: livebook-runtime
+                     env:
+                       - name: LIVEBOOK_COOKIE
+                         value: \#{Node.get_cookie()}
+               """
+
+               Kino.start_child(
+                 {FLAME.Pool,
+                  name: :runner,
+                  code_sync: [start_apps: true, copy_paths: true, sync_beams: Kino.beam_paths()],
+                  min: 0,
+                  max: 1,
+                  max_concurrency: 10,
+                  boot_timeout: :timer.minutes(3),
+                  idle_shutdown_after: :timer.minutes(1),
+                  timeout: :infinity,
+                  track_resources: true,
+                  backend: {FLAMEK8sBackend, runner_pod_tpl: pod_template}}
+               )\
+               '''
+    after
+      System.delete_env("KUBERNETES_SERVICE_HOST")
+    end
+
+    test "restores Fly source code from attrs" do
       attrs = %{
         "name" => "my_runner",
         "min" => 2,
@@ -80,6 +122,42 @@ defmodule KinoFLAME.RunnerCellTest do
                )\
                """
     end
+
+    test "restores Kubernetes source code from attrs" do
+      attrs = %{
+        "backend" => "k8s",
+        "name" => "my_runner",
+        "min" => 2,
+        "max" => 3,
+        "max_concurrency" => 15,
+        "k8s_pod_template" => "some_template"
+      }
+
+      {_kino, source} = start_smart_cell!(RunnerCell, attrs)
+
+      assert source ==
+               ~s'''
+               import YamlElixir.Sigil
+
+               pod_template = ~y"""
+               some_template
+               """
+
+               Kino.start_child(
+                 {FLAME.Pool,
+                  name: :my_runner,
+                  code_sync: [start_apps: true, copy_paths: true, sync_beams: Kino.beam_paths()],
+                  min: 2,
+                  max: 3,
+                  max_concurrency: 15,
+                  boot_timeout: :timer.minutes(3),
+                  idle_shutdown_after: :timer.minutes(1),
+                  timeout: :infinity,
+                  track_resources: true,
+                  backend: {FLAMEK8sBackend, runner_pod_tpl: pod_template}}
+               )\
+               '''
+    end
   end
 
   test "updates source on field update" do
@@ -91,6 +169,16 @@ defmodule KinoFLAME.RunnerCellTest do
 
     assert_smart_cell_update(kino, %{"min" => 5}, source)
     assert source =~ "min: 5"
+  end
+
+  test "sets missing_livebook_cookie if env var is missing" do
+    {kino, _source} = start_smart_cell!(RunnerCell, %{})
+
+    # TODO: use push_smart_cell_editor_source once released https://github.com/livebook-dev/kino/pull/468
+    # (no need to bump :kino requirement, because it's test-only)
+    send(kino.pid, {:editor_source, "some-source-without-env"})
+
+    assert_broadcast_event(kino, "missing_livebook_cookie", %{"is_missing" => true})
   end
 
   test "when available env vars change notifies the client" do
