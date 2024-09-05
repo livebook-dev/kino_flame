@@ -7,7 +7,7 @@ defmodule KinoFLAME.RunnerCell do
 
   @text_fields ["name", "backend"]
   @number_fields ["min", "max", "max_concurrency"] ++ ["fly_cpus", "fly_memory_gb", "fly_gpus"]
-  @default_pod_template ~S"""
+  @default_pod_template """
   apiVersion: v1
   kind: Pod
   metadata:
@@ -17,7 +17,7 @@ defmodule KinoFLAME.RunnerCell do
       - name: livebook-runtime
         env:
           - name: LIVEBOOK_COOKIE
-            value: #{Node.get_cookie()}\
+            value: \#{Node.get_cookie()}\
   """
 
   @impl true
