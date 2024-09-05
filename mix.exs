@@ -1,7 +1,7 @@
 defmodule KinoFLAME.MixProject do
   use Mix.Project
 
-  @version "0.1.2"
+  @version "0.1.3"
   @description "FLAME integration with Livebook"
 
   def project do
