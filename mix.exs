@@ -26,8 +26,9 @@ defmodule KinoFLAME.MixProject do
 
   defp deps do
     [
-      {:kino, "~> 0.13"},
+      {:kino, "~> 0.14"},
       {:flame, "~> 0.3"},
+      {:flame_k8s_backend, "~> 0.5", optional: true},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end

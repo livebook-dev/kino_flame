@@ -5,13 +5,28 @@ defmodule KinoFLAME.RunnerCell do
   use Kino.JS.Live
   use Kino.SmartCell, name: "FLAME runner cell"
 
-  @text_fields ["name"]
+  @text_fields ["name", "backend"]
   @number_fields ["min", "max", "max_concurrency"] ++ ["fly_cpus", "fly_memory_gb", "fly_gpus"]
+  @default_pod_template """
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    generateName: livebook-flame-runner-
+  spec:
+    containers:
+      - name: livebook-runtime
+        env:
+          - name: LIVEBOOK_COOKIE
+            value: \#{Node.get_cookie()}\
+  """
 
   @impl true
   def init(attrs, ctx) do
+    backend = attrs["backend"] || default_backend()
+
     fields = %{
       "name" => Kino.SmartCell.prefixed_var_name("runner", attrs["name"]),
+      "backend" => backend,
       "min" => attrs["min"] || 0,
       "max" => attrs["max"] || 1,
       "max_concurrency" => attrs["max_concurrency"] || 10,
@@ -23,15 +38,30 @@ defmodule KinoFLAME.RunnerCell do
       "fly_envs" => attrs["fly_envs"] || []
     }
 
-    {:ok, assign(ctx, fields: fields, warning_type: warning_type(), all_envs: [])}
+    k8s_pod_template = attrs["k8s_pod_template"] || @default_pod_template
+
+    ctx =
+      assign(
+        ctx,
+        fields: fields,
+        warnings: warnings(),
+        all_envs: [],
+        k8s_pod_template: k8s_pod_template,
+        missing_dep: missing_dep(fields),
+        missing_livebook_cookie: missing_livebook_cookie(k8s_pod_template)
+      )
+
+    {:ok, ctx, editor: [source: k8s_pod_template, language: "yaml", visible: backend == "k8s"]}
   end
 
   @impl true
   def handle_connect(ctx) do
     payload = %{
       fields: ctx.assigns.fields,
-      warning_type: ctx.assigns.warning_type,
-      all_envs: ctx.assigns.all_envs
+      warnings: ctx.assigns.warnings,
+      all_envs: ctx.assigns.all_envs,
+      missing_dep: ctx.assigns.missing_dep,
+      missing_livebook_cookie: ctx.assigns.missing_livebook_cookie
     }
 
     {:ok, payload, ctx}
@@ -46,11 +76,27 @@ defmodule KinoFLAME.RunnerCell do
   end
 
   @impl true
-  def handle_event("update_field", %{"field" => field, "value" => value}, ctx) do
-    updated_fields = to_updates(field, value)
-    ctx = update(ctx, :fields, &Map.merge(&1, updated_fields))
-    broadcast_event(ctx, "update", %{"fields" => updated_fields})
+  def handle_event("update_field", %{"field" => "backend", "value" => value}, ctx) do
+    ctx =
+      ctx
+      |> reconfigure_smart_cell(editor: [visible: value == "k8s"])
+      |> update_field("backend", value)
+
+    missing_dep = missing_dep(ctx.assigns.fields)
+
+    ctx =
+      if missing_dep == ctx.assigns.missing_dep do
+        ctx
+      else
+        broadcast_event(ctx, "missing_dep", %{"dep" => missing_dep})
+        assign(ctx, missing_dep: missing_dep)
+      end
+
     {:noreply, ctx}
+  end
+
+  def handle_event("update_field", %{"field" => field, "value" => value}, ctx) do
+    {:noreply, update_field(ctx, field, value)}
   end
 
   @impl true
@@ -61,6 +107,32 @@ defmodule KinoFLAME.RunnerCell do
       broadcast_event(ctx, "set_all_envs", %{"all_envs" => all_envs})
       {:noreply, assign(ctx, all_envs: all_envs)}
     end
+  end
+
+  @impl true
+  def handle_editor_change(source, ctx) do
+    missing_livebook_cookie = missing_livebook_cookie(source)
+
+    if missing_livebook_cookie != ctx.assigns.missing_livebook_cookie do
+      broadcast_event(ctx, "missing_livebook_cookie", %{"is_missing" => missing_livebook_cookie})
+    end
+
+    {:ok,
+     assign(ctx,
+       k8s_pod_template: source,
+       missing_livebook_cookie: missing_livebook_cookie
+     )}
+  end
+
+  defp update_field(ctx, field, value) do
+    updated_fields = to_updates(field, value)
+    ctx = update(ctx, :fields, &Map.merge(&1, updated_fields))
+    broadcast_event(ctx, "update", %{"fields" => updated_fields})
+    ctx
+  end
+
+  defp default_backend() do
+    if System.get_env("KUBERNETES_SERVICE_HOST"), do: "k8s", else: "fly"
   end
 
   defp to_updates(field, value) when field in @number_fields and is_binary(value) do
@@ -78,15 +150,34 @@ defmodule KinoFLAME.RunnerCell do
   defp to_updates(field, value), do: %{field => value}
 
   @impl true
-  def to_attrs(ctx) do
-    ctx.assigns.fields
+  def to_attrs(%{assigns: %{fields: fields, k8s_pod_template: k8s_pod_template}}) do
+    fields = Map.put(fields, "k8s_pod_template", k8s_pod_template)
+    shared_keys = ["backend", "name", "min", "max", "max_concurrency"]
+
+    backend_keys =
+      case fields["backend"] do
+        "k8s" ->
+          ~w|k8s_pod_template|
+
+        "fly" ->
+          ~w|fly_cpus fly_cpu_kind fly_memory_gb fly_gpu_kind fly_gpus fly_envs|
+      end
+
+    Map.take(fields, shared_keys ++ backend_keys)
   end
 
+  @required_keys_pool ["name", "min", "max", "max_concurrency"]
   @impl true
   def to_source(attrs) do
     required_keys =
-      ["name", "min", "max", "max_concurrency"] ++
-        ["fly_cpu_kind", "fly_cpus", "fly_memory_gb"]
+      case attrs["backend"] do
+        "fly" ->
+          @required_keys_pool ++
+            ["fly_cpu_kind", "fly_cpus", "fly_memory_gb"]
+
+        "k8s" ->
+          @required_keys_pool
+      end
 
     if all_fields_filled?(attrs, required_keys) do
       attrs |> to_quoted() |> Kino.SmartCell.quoted_to_string()
@@ -99,7 +190,7 @@ defmodule KinoFLAME.RunnerCell do
     not Enum.any?(keys, fn key -> attrs[key] in [nil, ""] end)
   end
 
-  defp to_quoted(attrs) do
+  defp to_quoted(%{"backend" => "fly"} = attrs) do
     specs_opts =
       [
         cpu_kind: attrs["fly_cpu_kind"],
@@ -126,6 +217,33 @@ defmodule KinoFLAME.RunnerCell do
 
     env = {:%{}, [], envs}
 
+    backend_ast =
+      quote do
+        {FLAME.FlyBackend,
+         [
+           unquote_splicing(specs_opts),
+           env: unquote(env)
+         ]}
+      end
+
+    to_quoted_pool(attrs, backend_ast)
+  end
+
+  defp to_quoted(%{"backend" => "k8s"} = attrs) do
+    multiline_k8s_pod_template =
+      {:sigil_y, [delimiter: ~S["""]], [{:<<>>, [], [attrs["k8s_pod_template"] <> "\n"]}, []]}
+
+    backend_ast =
+      quote do: {FLAMEK8sBackend, runner_pod_tpl: pod_template}
+
+    quote do
+      import YamlElixir.Sigil
+      pod_template = unquote(multiline_k8s_pod_template)
+      unquote(to_quoted_pool(attrs, backend_ast))
+    end
+  end
+
+  defp to_quoted_pool(attrs, quoted_backend) do
     # Note we use a longer :boot_timeout in case a CUDA-based Docker
     # image is involved. Those images are generally large, so it takes
     # a while to pull them, unless they are already in the Fly cache.
@@ -142,26 +260,41 @@ defmodule KinoFLAME.RunnerCell do
          idle_shutdown_after: :timer.minutes(1),
          timeout: :infinity,
          track_resources: true,
-         backend:
-           {FLAME.FlyBackend,
-            [
-              unquote_splicing(specs_opts),
-              env: unquote(env)
-            ]}}
+         backend: unquote(quoted_backend)}
       )
     end
   end
 
-  def warning_type() do
-    cond do
-      System.fetch_env("FLY_PRIVATE_IP") == :error ->
-        :no_fly
+  def warnings() do
+    %{
+      "no_k8s" => !System.get_env("KUBERNETES_SERVICE_HOST"),
+      "no_fly" => !System.get_env("FLY_PRIVATE_IP"),
+      "no_fly_token" => !System.get_env("FLY_API_TOKEN")
+    }
+  end
 
-      System.fetch_env("FLY_API_TOKEN") == :error ->
-        :no_fly_token
+  defp missing_dep(%{"backend" => "k8s"}) do
+    backend = Code.ensure_loaded?(FLAMEK8sBackend)
+    yaml_elixir = Code.ensure_loaded?(YamlElixir)
+
+    cond do
+      backend and yaml_elixir ->
+        nil
+
+      backend ->
+        ~s/{:yaml_elixir, "~> 2.0"}/
+
+      yaml_elixir ->
+        ~s/{:flame_k8s_backend, "~> 0.5"}/
 
       true ->
-        nil
+        ~s/{:flame_k8s_backend, "~> 0.5"}, {:yaml_elixir, "~> 2.0"}/
     end
+  end
+
+  defp missing_dep(_fields), do: nil
+
+  defp missing_livebook_cookie(k8s_pod_template) do
+    not (k8s_pod_template =~ ~r|\sLIVEBOOK_COOKIE\s|)
   end
 end
