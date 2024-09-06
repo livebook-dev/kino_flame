@@ -189,7 +189,7 @@ function HelpBox({ fields }) {
           target="_blank"
           className="border-b border-gray-900 font-medium text-gray-900 no-underline hover:border-none"
         >
-          FLAME
+          FLAME{" "}
         </a>
         pool that delegates computation to a separate machines. To learn more
         about the configuration details, refer to{" "}
