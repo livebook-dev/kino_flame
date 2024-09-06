@@ -191,7 +191,7 @@ function HelpBox({ fields }) {
         >
           FLAME
         </a>
-        pool that delegates computation to a separate machines. To learn more
+        {" "}pool that delegates computation to a separate machines. To learn more
         about the configuration details, refer to{" "}
         <a
           href="https://hexdocs.pm/flame"
