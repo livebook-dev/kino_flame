@@ -21,7 +21,7 @@ export default function App({ ctx, payload }) {
   const [showHelpBox, setShowHelpBox] = useState(false);
   const [missingDep, setMissingDep] = useState(payload.missing_dep);
   const [missingLivebookCookie, setMissingLivebookCookie] = useState(
-    payload.missing_livebook_cookie
+    payload.missing_livebook_cookie,
   );
   const warnings = payload.warnings;
 
@@ -190,8 +190,8 @@ function HelpBox({ fields }) {
           className="border-b border-gray-900 font-medium text-gray-900 no-underline hover:border-none"
         >
           FLAME
-        </a>
-        {" "}pool that delegates computation to a separate machines. To learn more
+        </a>{" "}
+        pool that delegates computation to a separate machines. To learn more
         about the configuration details, refer to{" "}
         <a
           href="https://hexdocs.pm/flame"
@@ -209,7 +209,7 @@ function HelpBox({ fields }) {
         automatically carried to remote nodes.
       </p>
       <p>
-        Once a pool is started, it will you can execute code on a separate machine as
+        Once a pool is started, you can execute code on a separate machine as
         follows:
         <pre className="mt-2 p-4 bg-[#282c34] rounded-lg whitespace-pre-wrap">
           <code className="text-[#c8ccd4]">
