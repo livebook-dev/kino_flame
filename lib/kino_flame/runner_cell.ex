@@ -252,7 +252,7 @@ defmodule KinoFLAME.RunnerCell do
       Kino.start_child(
         {FLAME.Pool,
          name: unquote(String.to_atom(attrs["name"])),
-         code_sync: [start_apps: true, copy_paths: true, sync_beams: Kino.beam_paths()],
+         code_sync: [start_apps: true, sync_beams: Kino.beam_paths()],
          min: unquote(attrs["min"]),
          max: unquote(attrs["max"]),
          max_concurrency: unquote(attrs["max_concurrency"]),

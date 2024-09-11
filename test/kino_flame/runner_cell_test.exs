@@ -19,7 +19,7 @@ defmodule KinoFLAME.RunnerCellTest do
                Kino.start_child(
                  {FLAME.Pool,
                   name: :runner,
-                  code_sync: [start_apps: true, copy_paths: true, sync_beams: Kino.beam_paths()],
+                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths()],
                   min: 0,
                   max: 1,
                   max_concurrency: 10,
@@ -64,7 +64,7 @@ defmodule KinoFLAME.RunnerCellTest do
                Kino.start_child(
                  {FLAME.Pool,
                   name: :runner,
-                  code_sync: [start_apps: true, copy_paths: true, sync_beams: Kino.beam_paths()],
+                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths()],
                   min: 0,
                   max: 1,
                   max_concurrency: 10,
@@ -100,7 +100,7 @@ defmodule KinoFLAME.RunnerCellTest do
                Kino.start_child(
                  {FLAME.Pool,
                   name: :my_runner,
-                  code_sync: [start_apps: true, copy_paths: true, sync_beams: Kino.beam_paths()],
+                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths()],
                   min: 2,
                   max: 3,
                   max_concurrency: 15,
@@ -146,7 +146,7 @@ defmodule KinoFLAME.RunnerCellTest do
                Kino.start_child(
                  {FLAME.Pool,
                   name: :my_runner,
-                  code_sync: [start_apps: true, copy_paths: true, sync_beams: Kino.beam_paths()],
+                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths()],
                   min: 2,
                   max: 3,
                   max_concurrency: 15,
