@@ -7,7 +7,7 @@ const Pool = ({ fields, handleChange, handleBlur }) => (
       <TextField
         type="number"
         name="min"
-        label="Min runners"
+        label="Min instances"
         value={fields.min}
         onChange={(event) => handleChange(event, false)}
         onBlur={handleBlur}
@@ -19,7 +19,7 @@ const Pool = ({ fields, handleChange, handleBlur }) => (
       <TextField
         type="number"
         name="max"
-        label="Max runners"
+        label="Max instances"
         value={fields.max}
         onChange={(event) => handleChange(event, false)}
         onBlur={handleBlur}
