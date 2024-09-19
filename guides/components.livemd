@@ -2,7 +2,7 @@
 
 ```elixir
 Mix.install([
-  {:kino_flame, "~> 0.1.4"}
+  {:kino_flame, "~> 0.1.5"}
 ])
 ```
 
