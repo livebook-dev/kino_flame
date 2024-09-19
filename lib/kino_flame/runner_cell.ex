@@ -29,6 +29,7 @@ defmodule KinoFLAME.RunnerCell do
       "backend" => backend,
       "min" => attrs["min"] || 0,
       "max" => attrs["max"] || 1,
+      "compress" => Map.get(attrs, "compress", false),
       "max_concurrency" => attrs["max_concurrency"] || 10,
       "fly_cpus" => attrs["fly_cpus"] || 1,
       "fly_cpu_kind" => attrs["fly_cpu_kind"] || "shared",
@@ -152,7 +153,8 @@ defmodule KinoFLAME.RunnerCell do
   @impl true
   def to_attrs(%{assigns: %{fields: fields, k8s_pod_template: k8s_pod_template}}) do
     fields = Map.put(fields, "k8s_pod_template", k8s_pod_template)
-    shared_keys = ["backend", "name", "min", "max", "max_concurrency"]
+
+    shared_keys = ["backend", "name", "min", "max", "max_concurrency", "compress"]
 
     backend_keys =
       case fields["backend"] do
@@ -166,17 +168,17 @@ defmodule KinoFLAME.RunnerCell do
     Map.take(fields, shared_keys ++ backend_keys)
   end
 
-  @required_keys_pool ["name", "min", "max", "max_concurrency"]
   @impl true
   def to_source(attrs) do
+    shared_required_keys = ["name", "min", "max", "max_concurrency", "compress"]
+
     required_keys =
       case attrs["backend"] do
         "fly" ->
-          @required_keys_pool ++
-            ["fly_cpu_kind", "fly_cpus", "fly_memory_gb"]
+          shared_required_keys ++ ["fly_cpu_kind", "fly_cpus", "fly_memory_gb"]
 
         "k8s" ->
-          @required_keys_pool
+          shared_required_keys
       end
 
     if all_fields_filled?(attrs, required_keys) do
@@ -252,7 +254,11 @@ defmodule KinoFLAME.RunnerCell do
       Kino.start_child(
         {FLAME.Pool,
          name: unquote(String.to_atom(attrs["name"])),
-         code_sync: [start_apps: true, sync_beams: Kino.beam_paths()],
+         code_sync: [
+           start_apps: true,
+           sync_beams: Kino.beam_paths(),
+           compress: unquote(attrs["compress"])
+         ],
          min: unquote(attrs["min"]),
          max: unquote(attrs["max"]),
          max_concurrency: unquote(attrs["max_concurrency"]),

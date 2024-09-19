@@ -1,5 +1,5 @@
 import React from "react";
-import { SelectField, TextField } from "./form_elements";
+import { Switch, TextField } from "./form_elements";
 
 const Pool = ({ fields, handleChange, handleBlur }) => (
   <div className="flex flex-wrap gap-2 p-4">
@@ -39,6 +39,21 @@ const Pool = ({ fields, handleChange, handleBlur }) => (
         required
       />
     </div>
+    <Switch
+      label="Compress"
+      name="compress"
+      checked={fields.compress}
+      onChange={handleChange}
+      help={
+        "FLAME automatically transfers\n" +
+        "packages between machines. By\n" +
+        "default, compression is disabled\n" +
+        "as it may be expensive, but you\n" +
+        "may want to enable compression\n" +
+        "if you plan to spawn dozens of\n" +
+        "machines or more."
+      }
+    />
   </div>
 );
 
