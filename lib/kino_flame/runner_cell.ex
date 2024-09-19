@@ -3,7 +3,7 @@ defmodule KinoFLAME.RunnerCell do
 
   use Kino.JS, assets_path: "lib/assets/runner_cell", entrypoint: "build/main.js"
   use Kino.JS.Live
-  use Kino.SmartCell, name: "FLAME runner cell"
+  use Kino.SmartCell, name: "FLAME runner"
 
   @text_fields ["name", "backend"]
   @number_fields ["min", "max", "max_concurrency"] ++ ["fly_cpus", "fly_memory_gb", "fly_gpus"]
