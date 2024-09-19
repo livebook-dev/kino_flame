@@ -208,9 +208,11 @@ function HelpBox({ fields }) {
         nodes. Note that process state and application configuration are not
         automatically carried to remote nodes.
       </p>
-      <p>
-        Once a pool is started, you can execute code on a separate machine as
-        follows:
+      <div>
+        <p>
+          Once a pool is started, you can execute code on a separate machine as
+          follows:
+        </p>
         <pre className="mt-2 p-4 bg-[#282c34] rounded-lg whitespace-pre-wrap">
           <code className="text-[#c8ccd4]">
             <span className="text-[#56b6c2]">FLAME</span>
@@ -223,7 +225,7 @@ function HelpBox({ fields }) {
             <span className="text-[#c678dd]">end</span>)
           </code>
         </pre>
-      </p>
+      </div>
     </div>
   );
 }

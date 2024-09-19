@@ -19,7 +19,7 @@ defmodule KinoFLAME.RunnerCellTest do
                Kino.start_child(
                  {FLAME.Pool,
                   name: :runner,
-                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths()],
+                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths(), compress: false],
                   min: 0,
                   max: 1,
                   max_concurrency: 10,
@@ -64,7 +64,7 @@ defmodule KinoFLAME.RunnerCellTest do
                Kino.start_child(
                  {FLAME.Pool,
                   name: :runner,
-                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths()],
+                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths(), compress: false],
                   min: 0,
                   max: 1,
                   max_concurrency: 10,
@@ -85,6 +85,7 @@ defmodule KinoFLAME.RunnerCellTest do
         "min" => 2,
         "max" => 3,
         "max_concurrency" => 15,
+        "compress" => true,
         "fly_cpu_kind" => "performance",
         "fly_cpus" => 2,
         "fly_memory_gb" => 2,
@@ -100,7 +101,7 @@ defmodule KinoFLAME.RunnerCellTest do
                Kino.start_child(
                  {FLAME.Pool,
                   name: :my_runner,
-                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths()],
+                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths(), compress: true],
                   min: 2,
                   max: 3,
                   max_concurrency: 15,
@@ -130,6 +131,7 @@ defmodule KinoFLAME.RunnerCellTest do
         "min" => 2,
         "max" => 3,
         "max_concurrency" => 15,
+        "compress" => true,
         "k8s_pod_template" => "some_template"
       }
 
@@ -146,7 +148,7 @@ defmodule KinoFLAME.RunnerCellTest do
                Kino.start_child(
                  {FLAME.Pool,
                   name: :my_runner,
-                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths()],
+                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths(), compress: true],
                   min: 2,
                   max: 3,
                   max_concurrency: 15,

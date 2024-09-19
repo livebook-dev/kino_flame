@@ -1,5 +1,9 @@
 import React from "react";
-import { RiCloseLine, RiArrowDownSLine } from "@remixicon/react";
+import {
+  RiCloseLine,
+  RiArrowDownSLine,
+  RiQuestionLine,
+} from "@remixicon/react";
 import classNames from "classnames";
 
 export function SelectField({
@@ -58,7 +62,7 @@ export function MultiSelectField({
   ...props
 }) {
   const availableOptions = options.filter(
-    (option) => !value.includes(option.value)
+    (option) => !value.includes(option.value),
   );
 
   function labelForValue(value) {
@@ -79,7 +83,7 @@ export function MultiSelectField({
 
   function handleDelete(subvalue) {
     const newValue = value.filter(
-      (otherSubvalue) => otherSubvalue !== subvalue
+      (otherSubvalue) => otherSubvalue !== subvalue,
     );
     onChange && onChange(newValue);
   }
@@ -186,6 +190,34 @@ export function TextField({
             className,
           ])}
         />
+      </div>
+    </div>
+  );
+}
+
+export function Switch({ label = null, checked, help = null, ...props }) {
+  return (
+    <div className="flex flex-col">
+      {label && (
+        <span className="color-gray-800 mb-0.5 block text-sm font-medium flex items-center gap-1">
+          {label}
+          {help && (
+            <span class="cursor-pointer tooltip right" data-tooltip={help}>
+              <RiQuestionLine size={14} />
+            </span>
+          )}
+        </span>
+      )}
+      <div className="grow flex items-center">
+        <label className="relative inline-block h-7 w-14 select-none">
+          <input
+            type="checkbox"
+            className="peer absolute block h-7 w-7 cursor-pointer appearance-none rounded-full border-[5px] border-gray-100 bg-gray-400 outline-none transition-all duration-300 checked:translate-x-full checked:transform checked:border-blue-600 checked:bg-white"
+            checked={checked}
+            {...props}
+          />
+          <div className="block h-full w-full cursor-pointer rounded-full bg-gray-100 transition-all duration-300 peer-checked:bg-blue-600" />
+        </label>
       </div>
     </div>
   );
