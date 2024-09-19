@@ -43,7 +43,7 @@ export default function Fly({
             name="fly_cpus"
             label="CPUs"
             value={fields.fly_cpus}
-            onChange={(event) => handleChange(event, false)}
+            onChange={handleChange}
             onBlur={handleBlur}
             min="1"
             required
@@ -55,7 +55,7 @@ export default function Fly({
             name="fly_memory_gb"
             label="Memory (GB)"
             value={fields.fly_memory_gb}
-            onChange={(event) => handleChange(event, false)}
+            onChange={handleChange}
             onBlur={handleBlur}
             min="1"
             required
@@ -74,7 +74,7 @@ export default function Fly({
             name="fly_gpus"
             label="GPUs"
             value={fields.fly_gpus}
-            onChange={(event) => handleChange(event, false)}
+            onChange={handleChange}
             onBlur={handleBlur}
             min="1"
           />

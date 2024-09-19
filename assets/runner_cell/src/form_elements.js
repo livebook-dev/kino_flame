@@ -202,7 +202,7 @@ export function Switch({ label = null, checked, help = null, ...props }) {
         <span className="color-gray-800 mb-0.5 block text-sm font-medium flex items-center gap-1">
           {label}
           {help && (
-            <span class="cursor-pointer tooltip right" data-tooltip={help}>
+            <span className="cursor-pointer tooltip right" data-tooltip={help}>
               <RiQuestionLine size={14} />
             </span>
           )}

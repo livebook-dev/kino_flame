@@ -97,7 +97,7 @@ export default function App({ ctx, payload }) {
           a Kubernetes cluster. To use it, either use the Livebook K8s runtime
           or deploy your Livebook as a{" "}
           <a
-            class="text-indigo-500"
+            className="text-indigo-500"
             target="_blank"
             href="https://artifacthub.io/packages/helm/livebook/livebook"
           >

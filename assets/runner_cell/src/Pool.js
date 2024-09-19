@@ -9,7 +9,7 @@ const Pool = ({ fields, handleChange, handleBlur }) => (
         name="min"
         label="Min instances"
         value={fields.min}
-        onChange={(event) => handleChange(event, false)}
+        onChange={handleChange}
         onBlur={handleBlur}
         min="0"
         required
@@ -21,7 +21,7 @@ const Pool = ({ fields, handleChange, handleBlur }) => (
         name="max"
         label="Max instances"
         value={fields.max}
-        onChange={(event) => handleChange(event, false)}
+        onChange={handleChange}
         onBlur={handleBlur}
         min="1"
         required
@@ -33,7 +33,7 @@ const Pool = ({ fields, handleChange, handleBlur }) => (
         name="max_concurrency"
         label="Max concurrency"
         value={fields.max_concurrency}
-        onChange={(event) => handleChange(event, false)}
+        onChange={handleChange}
         onBlur={handleBlur}
         min="1"
         required
