@@ -9,8 +9,9 @@ defmodule KinoFLAME.RunnerCellTest do
 
   describe "initialization" do
     test "with empty attributes" do
-      # We only set name to make sure it's deterministic
-      attrs = %{"name" => "runner"}
+      # We set name to make sure it's deterministic, and we set
+      # initialize_pythonx to test the base case.
+      attrs = %{"name" => "runner", "initialize_pythonx" => false}
 
       {_kino, source} = start_smart_cell!(RunnerCell, attrs)
 
@@ -38,8 +39,9 @@ defmodule KinoFLAME.RunnerCellTest do
     end
 
     test "with empty attributes on Kubernetes" do
-      # We only set name to make sure it's deterministic
-      attrs = %{"name" => "runner"}
+      # We set name to make sure it's deterministic, and we set
+      # initialize_pythonx to test the base case.
+      attrs = %{"name" => "runner", "initialize_pythonx" => false}
       System.put_env("KUBERNETES_SERVICE_HOST", "some-value")
 
       {_kino, source} = start_smart_cell!(RunnerCell, attrs)
@@ -91,7 +93,8 @@ defmodule KinoFLAME.RunnerCellTest do
         "fly_memory_gb" => 2,
         "fly_gpu_kind" => "a100-pcie-40gb",
         "fly_gpus" => 2,
-        "fly_envs" => ["MY_TOKEN"]
+        "fly_envs" => ["MY_TOKEN"],
+        "initialize_pythonx" => false
       }
 
       {_kino, source} = start_smart_cell!(RunnerCell, attrs)
@@ -124,6 +127,39 @@ defmodule KinoFLAME.RunnerCellTest do
                """
     end
 
+    test "Fly with pythonx" do
+      attrs = %{"name" => "runner", "initialize_pythonx" => true}
+
+      {_kino, source} = start_smart_cell!(RunnerCell, attrs)
+
+      assert source ==
+               """
+               Kino.start_child(
+                 {FLAME.Pool,
+                  name: :runner,
+                  code_sync: [
+                    start_apps: true,
+                    sync_beams: Kino.beam_paths(),
+                    compress: false,
+                    copy_paths: Pythonx.install_paths()
+                  ],
+                  min: 0,
+                  max: 1,
+                  max_concurrency: 10,
+                  boot_timeout: :timer.minutes(3),
+                  idle_shutdown_after: :timer.minutes(1),
+                  timeout: :infinity,
+                  track_resources: true,
+                  backend:
+                    {FLAME.FlyBackend,
+                     cpu_kind: "shared",
+                     cpus: 1,
+                     memory_mb: 1024,
+                     env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()} |> Map.merge(Pythonx.install_env())}}
+               )\
+               """
+    end
+
     test "restores Kubernetes source code from attrs" do
       attrs = %{
         "backend" => "k8s",
@@ -132,7 +168,8 @@ defmodule KinoFLAME.RunnerCellTest do
         "max" => 3,
         "max_concurrency" => 15,
         "compress" => true,
-        "k8s_pod_template" => "some_template"
+        "k8s_pod_template" => "some_template",
+        "initialize_pythonx" => false
       }
 
       {_kino, source} = start_smart_cell!(RunnerCell, attrs)

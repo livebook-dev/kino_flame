@@ -29,6 +29,7 @@ defmodule KinoFLAME.MixProject do
       {:kino, "~> 0.14"},
       {:flame, "~> 0.5"},
       {:flame_k8s_backend, "~> 0.5", optional: true},
+      {:pythonx, "~> 0.4.8", optional: true},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end

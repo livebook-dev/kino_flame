@@ -36,7 +36,9 @@ defmodule KinoFLAME.RunnerCell do
       "fly_memory_gb" => attrs["fly_memory_gb"] || 1,
       "fly_gpu_kind" => attrs["fly_gpu_kind"],
       "fly_gpus" => attrs["fly_gpus"],
-      "fly_envs" => attrs["fly_envs"] || []
+      "fly_envs" => attrs["fly_envs"] || [],
+      "initialize_pythonx" =>
+        Map.get_lazy(attrs, "initialize_pythonx", fn -> default_initialize_pythonx() end)
     }
 
     k8s_pod_template = attrs["k8s_pod_template"] || @default_pod_template
@@ -136,6 +138,10 @@ defmodule KinoFLAME.RunnerCell do
     if System.get_env("KUBERNETES_SERVICE_HOST"), do: "k8s", else: "fly"
   end
 
+  defp default_initialize_pythonx() do
+    Code.ensure_loaded?(Pythonx)
+  end
+
   defp to_updates(field, value) when field in @number_fields and is_binary(value) do
     value =
       case Integer.parse(value) do
@@ -154,7 +160,15 @@ defmodule KinoFLAME.RunnerCell do
   def to_attrs(%{assigns: %{fields: fields, k8s_pod_template: k8s_pod_template}}) do
     fields = Map.put(fields, "k8s_pod_template", k8s_pod_template)
 
-    shared_keys = ["backend", "name", "min", "max", "max_concurrency", "compress"]
+    shared_keys = [
+      "backend",
+      "name",
+      "min",
+      "max",
+      "max_concurrency",
+      "compress",
+      "initialize_pythonx"
+    ]
 
     backend_keys =
       case fields["backend"] do
@@ -219,6 +233,15 @@ defmodule KinoFLAME.RunnerCell do
 
     env = {:%{}, [], envs}
 
+    env =
+      if attrs["initialize_pythonx"] do
+        quote do
+          unquote(env) |> Map.merge(Pythonx.install_env())
+        end
+      else
+        env
+      end
+
     backend_ast =
       quote do
         {FLAME.FlyBackend,
@@ -255,9 +278,15 @@ defmodule KinoFLAME.RunnerCell do
         {FLAME.Pool,
          name: unquote(String.to_atom(attrs["name"])),
          code_sync: [
-           start_apps: true,
-           sync_beams: Kino.beam_paths(),
-           compress: unquote(attrs["compress"])
+           {:start_apps, true},
+           {:sync_beams, Kino.beam_paths()},
+           {:compress, unquote(attrs["compress"])},
+           unquote_splicing(
+             if(attrs["initialize_pythonx"],
+               do: [copy_paths: quote(do: Pythonx.install_paths())],
+               else: []
+             )
+           )
          ],
          min: unquote(attrs["min"]),
          max: unquote(attrs["max"]),
