@@ -7,10 +7,11 @@ defmodule KinoFLAME.RunnerCellTest do
 
   setup :configure_livebook_bridge
 
-  describe "initialization" do
+  describe "initialization with fly runtime" do
     test "with empty attributes" do
-      # We only set name to make sure it's deterministic
-      attrs = %{"name" => "runner"}
+      # We set name to make sure it's deterministic, and we set
+      # initialize_pythonx to test the base case.
+      attrs = %{"name" => "runner", "initialize_pythonx" => false}
 
       {_kino, source} = start_smart_cell!(RunnerCell, attrs)
 
@@ -37,49 +38,7 @@ defmodule KinoFLAME.RunnerCellTest do
                """
     end
 
-    test "with empty attributes on Kubernetes" do
-      # We only set name to make sure it's deterministic
-      attrs = %{"name" => "runner"}
-      System.put_env("KUBERNETES_SERVICE_HOST", "some-value")
-
-      {_kino, source} = start_smart_cell!(RunnerCell, attrs)
-
-      assert source ==
-               ~s'''
-               import YamlElixir.Sigil
-
-               pod_template = ~y"""
-               apiVersion: v1
-               kind: Pod
-               metadata:
-                 generateName: livebook-flame-runner-
-               spec:
-                 containers:
-                   - name: livebook-runtime
-                     env:
-                       - name: LIVEBOOK_COOKIE
-                         value: \#{Node.get_cookie()}
-               """
-
-               Kino.start_child(
-                 {FLAME.Pool,
-                  name: :runner,
-                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths(), compress: false],
-                  min: 0,
-                  max: 1,
-                  max_concurrency: 10,
-                  boot_timeout: :timer.minutes(3),
-                  idle_shutdown_after: :timer.minutes(1),
-                  timeout: :infinity,
-                  track_resources: true,
-                  backend: {FLAMEK8sBackend, runner_pod_tpl: pod_template}}
-               )\
-               '''
-    after
-      System.delete_env("KUBERNETES_SERVICE_HOST")
-    end
-
-    test "restores Fly source code from attrs" do
+    test "restores source code from attrs" do
       attrs = %{
         "name" => "my_runner",
         "min" => 2,
@@ -91,7 +50,8 @@ defmodule KinoFLAME.RunnerCellTest do
         "fly_memory_gb" => 2,
         "fly_gpu_kind" => "a100-pcie-40gb",
         "fly_gpus" => 2,
-        "fly_envs" => ["MY_TOKEN"]
+        "fly_envs" => ["MY_TOKEN"],
+        "initialize_pythonx" => false
       }
 
       {_kino, source} = start_smart_cell!(RunnerCell, attrs)
@@ -124,7 +84,83 @@ defmodule KinoFLAME.RunnerCellTest do
                """
     end
 
-    test "restores Kubernetes source code from attrs" do
+    test "with pythonx" do
+      attrs = %{"name" => "runner", "initialize_pythonx" => true}
+
+      {_kino, source} = start_smart_cell!(RunnerCell, attrs)
+
+      assert source ==
+               """
+               Kino.start_child(
+                 {FLAME.Pool,
+                  name: :runner,
+                  code_sync: [
+                    start_apps: true,
+                    sync_beams: Kino.beam_paths(),
+                    compress: false,
+                    copy_paths: Pythonx.install_paths()
+                  ],
+                  min: 0,
+                  max: 1,
+                  max_concurrency: 10,
+                  boot_timeout: :timer.minutes(3),
+                  idle_shutdown_after: :timer.minutes(1),
+                  timeout: :infinity,
+                  track_resources: true,
+                  backend:
+                    {FLAME.FlyBackend,
+                     cpu_kind: "shared",
+                     cpus: 1,
+                     memory_mb: 1024,
+                     env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()} |> Map.merge(Pythonx.install_env())}}
+               )\
+               """
+    end
+  end
+
+  describe "initialization with kubernetes runtime" do
+    test "with empty attributes" do
+      # We set name to make sure it's deterministic, and we set
+      # initialize_pythonx to test the base case.
+      attrs = %{"name" => "runner", "initialize_pythonx" => false}
+      System.put_env("KUBERNETES_SERVICE_HOST", "some-value")
+
+      {_kino, source} = start_smart_cell!(RunnerCell, attrs)
+
+      assert source ==
+               ~s'''
+               import YamlElixir.Sigil
+
+               manifest = ~y"""
+               apiVersion: v1
+               kind: Pod
+               metadata:
+                 generateName: livebook-flame-runner-
+               spec:
+                 containers:
+                   - name: livebook-runtime
+               """
+
+               Kino.start_child(
+                 {FLAME.Pool,
+                  name: :runner,
+                  code_sync: [start_apps: true, sync_beams: Kino.beam_paths(), compress: false],
+                  min: 0,
+                  max: 1,
+                  max_concurrency: 10,
+                  boot_timeout: :timer.minutes(3),
+                  idle_shutdown_after: :timer.minutes(1),
+                  timeout: :infinity,
+                  track_resources: true,
+                  backend:
+                    {FLAMEK8sBackend, manifest: manifest, env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()}}}
+               )\
+               '''
+    after
+      System.delete_env("KUBERNETES_SERVICE_HOST")
+    end
+
+    test "restores source code from attrs" do
       attrs = %{
         "backend" => "k8s",
         "name" => "my_runner",
@@ -132,7 +168,8 @@ defmodule KinoFLAME.RunnerCellTest do
         "max" => 3,
         "max_concurrency" => 15,
         "compress" => true,
-        "k8s_pod_template" => "some_template"
+        "k8s_pod_template" => "some_template",
+        "initialize_pythonx" => false
       }
 
       {_kino, source} = start_smart_cell!(RunnerCell, attrs)
@@ -141,7 +178,7 @@ defmodule KinoFLAME.RunnerCellTest do
                ~s'''
                import YamlElixir.Sigil
 
-               pod_template = ~y"""
+               manifest = ~y"""
                some_template
                """
 
@@ -156,7 +193,51 @@ defmodule KinoFLAME.RunnerCellTest do
                   idle_shutdown_after: :timer.minutes(1),
                   timeout: :infinity,
                   track_resources: true,
-                  backend: {FLAMEK8sBackend, runner_pod_tpl: pod_template}}
+                  backend:
+                    {FLAMEK8sBackend, manifest: manifest, env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()}}}
+               )\
+               '''
+    end
+
+    test "with pythonx" do
+      attrs = %{"backend" => "k8s", "name" => "runner", "initialize_pythonx" => true}
+
+      {_kino, source} = start_smart_cell!(RunnerCell, attrs)
+
+      assert source ==
+               ~s'''
+               import YamlElixir.Sigil
+
+               manifest = ~y"""
+               apiVersion: v1
+               kind: Pod
+               metadata:
+                 generateName: livebook-flame-runner-
+               spec:
+                 containers:
+                   - name: livebook-runtime
+               """
+
+               Kino.start_child(
+                 {FLAME.Pool,
+                  name: :runner,
+                  code_sync: [
+                    start_apps: true,
+                    sync_beams: Kino.beam_paths(),
+                    compress: false,
+                    copy_paths: Pythonx.install_paths()
+                  ],
+                  min: 0,
+                  max: 1,
+                  max_concurrency: 10,
+                  boot_timeout: :timer.minutes(3),
+                  idle_shutdown_after: :timer.minutes(1),
+                  timeout: :infinity,
+                  track_resources: true,
+                  backend:
+                    {FLAMEK8sBackend,
+                     manifest: manifest,
+                     env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()} |> Map.merge(Pythonx.install_env())}}
                )\
                '''
     end
@@ -171,16 +252,6 @@ defmodule KinoFLAME.RunnerCellTest do
 
     assert_smart_cell_update(kino, %{"min" => 5}, source)
     assert source =~ "min: 5"
-  end
-
-  test "sets missing_livebook_cookie if env var is missing" do
-    {kino, _source} = start_smart_cell!(RunnerCell, %{})
-
-    # TODO: use push_smart_cell_editor_source once released https://github.com/livebook-dev/kino/pull/468
-    # (no need to bump :kino requirement, because it's test-only)
-    send(kino.pid, {:editor_source, "some-source-without-env"})
-
-    assert_broadcast_event(kino, "missing_livebook_cookie", %{"is_missing" => true})
   end
 
   test "when available env vars change notifies the client" do

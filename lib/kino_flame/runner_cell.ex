@@ -14,10 +14,7 @@ defmodule KinoFLAME.RunnerCell do
     generateName: livebook-flame-runner-
   spec:
     containers:
-      - name: livebook-runtime
-        env:
-          - name: LIVEBOOK_COOKIE
-            value: \#{Node.get_cookie()}\
+      - name: livebook-runtime\
   """
 
   @impl true
@@ -36,7 +33,9 @@ defmodule KinoFLAME.RunnerCell do
       "fly_memory_gb" => attrs["fly_memory_gb"] || 1,
       "fly_gpu_kind" => attrs["fly_gpu_kind"],
       "fly_gpus" => attrs["fly_gpus"],
-      "fly_envs" => attrs["fly_envs"] || []
+      "fly_envs" => attrs["fly_envs"] || [],
+      "initialize_pythonx" =>
+        Map.get_lazy(attrs, "initialize_pythonx", fn -> default_initialize_pythonx() end)
     }
 
     k8s_pod_template = attrs["k8s_pod_template"] || @default_pod_template
@@ -48,8 +47,7 @@ defmodule KinoFLAME.RunnerCell do
         warnings: warnings(),
         all_envs: [],
         k8s_pod_template: k8s_pod_template,
-        missing_dep: missing_dep(fields),
-        missing_livebook_cookie: missing_livebook_cookie(k8s_pod_template)
+        missing_dep: missing_dep(fields)
       )
 
     {:ok, ctx, editor: [source: k8s_pod_template, language: "yaml", visible: backend == "k8s"]}
@@ -61,8 +59,7 @@ defmodule KinoFLAME.RunnerCell do
       fields: ctx.assigns.fields,
       warnings: ctx.assigns.warnings,
       all_envs: ctx.assigns.all_envs,
-      missing_dep: ctx.assigns.missing_dep,
-      missing_livebook_cookie: ctx.assigns.missing_livebook_cookie
+      missing_dep: ctx.assigns.missing_dep
     }
 
     {:ok, payload, ctx}
@@ -112,17 +109,7 @@ defmodule KinoFLAME.RunnerCell do
 
   @impl true
   def handle_editor_change(source, ctx) do
-    missing_livebook_cookie = missing_livebook_cookie(source)
-
-    if missing_livebook_cookie != ctx.assigns.missing_livebook_cookie do
-      broadcast_event(ctx, "missing_livebook_cookie", %{"is_missing" => missing_livebook_cookie})
-    end
-
-    {:ok,
-     assign(ctx,
-       k8s_pod_template: source,
-       missing_livebook_cookie: missing_livebook_cookie
-     )}
+    {:ok, assign(ctx, k8s_pod_template: source)}
   end
 
   defp update_field(ctx, field, value) do
@@ -134,6 +121,10 @@ defmodule KinoFLAME.RunnerCell do
 
   defp default_backend() do
     if System.get_env("KUBERNETES_SERVICE_HOST"), do: "k8s", else: "fly"
+  end
+
+  defp default_initialize_pythonx() do
+    Code.ensure_loaded?(Pythonx)
   end
 
   defp to_updates(field, value) when field in @number_fields and is_binary(value) do
@@ -154,7 +145,15 @@ defmodule KinoFLAME.RunnerCell do
   def to_attrs(%{assigns: %{fields: fields, k8s_pod_template: k8s_pod_template}}) do
     fields = Map.put(fields, "k8s_pod_template", k8s_pod_template)
 
-    shared_keys = ["backend", "name", "min", "max", "max_concurrency", "compress"]
+    shared_keys = [
+      "backend",
+      "name",
+      "min",
+      "max",
+      "max_concurrency",
+      "compress",
+      "initialize_pythonx"
+    ]
 
     backend_keys =
       case fields["backend"] do
@@ -219,6 +218,15 @@ defmodule KinoFLAME.RunnerCell do
 
     env = {:%{}, [], envs}
 
+    env =
+      if attrs["initialize_pythonx"] do
+        quote do
+          unquote(env) |> Map.merge(Pythonx.install_env())
+        end
+      else
+        env
+      end
+
     backend_ast =
       quote do
         {FLAME.FlyBackend,
@@ -235,12 +243,31 @@ defmodule KinoFLAME.RunnerCell do
     multiline_k8s_pod_template =
       {:sigil_y, [delimiter: ~S["""]], [{:<<>>, [], [attrs["k8s_pod_template"] <> "\n"]}, []]}
 
+    envs =
+      [
+        {"LIVEBOOK_COOKIE",
+         quote do
+           Node.get_cookie()
+         end}
+      ]
+
+    env = {:%{}, [], envs}
+
+    env =
+      if attrs["initialize_pythonx"] do
+        quote do
+          unquote(env) |> Map.merge(Pythonx.install_env())
+        end
+      else
+        env
+      end
+
     backend_ast =
-      quote do: {FLAMEK8sBackend, runner_pod_tpl: pod_template}
+      quote do: {FLAMEK8sBackend, manifest: manifest, env: unquote(env)}
 
     quote do
       import YamlElixir.Sigil
-      pod_template = unquote(multiline_k8s_pod_template)
+      manifest = unquote(multiline_k8s_pod_template)
       unquote(to_quoted_pool(attrs, backend_ast))
     end
   end
@@ -255,9 +282,15 @@ defmodule KinoFLAME.RunnerCell do
         {FLAME.Pool,
          name: unquote(String.to_atom(attrs["name"])),
          code_sync: [
-           start_apps: true,
-           sync_beams: Kino.beam_paths(),
-           compress: unquote(attrs["compress"])
+           {:start_apps, true},
+           {:sync_beams, Kino.beam_paths()},
+           {:compress, unquote(attrs["compress"])},
+           unquote_splicing(
+             if(attrs["initialize_pythonx"],
+               do: [copy_paths: quote(do: Pythonx.install_paths())],
+               else: []
+             )
+           )
          ],
          min: unquote(attrs["min"]),
          max: unquote(attrs["max"]),
@@ -299,8 +332,4 @@ defmodule KinoFLAME.RunnerCell do
   end
 
   defp missing_dep(_fields), do: nil
-
-  defp missing_livebook_cookie(k8s_pod_template) do
-    not (k8s_pod_template =~ ~r|\sLIVEBOOK_COOKIE\s|)
-  end
 end

@@ -54,6 +54,17 @@ const Pool = ({ fields, handleChange, handleBlur }) => (
         "machines or more."
       }
     />
+    <Switch
+      label="Pythonx"
+      name="initialize_pythonx"
+      checked={fields.initialize_pythonx}
+      onChange={handleChange}
+      help={
+        "When enabled, configures the runner\n" +
+        "to initialize Pythonx environment in\n" +
+        "to match the current environment."
+      }
+    />
   </div>
 );
 
