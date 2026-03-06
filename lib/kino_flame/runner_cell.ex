@@ -14,10 +14,7 @@ defmodule KinoFLAME.RunnerCell do
     generateName: livebook-flame-runner-
   spec:
     containers:
-      - name: livebook-runtime
-        env:
-          - name: LIVEBOOK_COOKIE
-            value: \#{Node.get_cookie()}\
+      - name: livebook-runtime\
   """
 
   @impl true
@@ -50,8 +47,7 @@ defmodule KinoFLAME.RunnerCell do
         warnings: warnings(),
         all_envs: [],
         k8s_pod_template: k8s_pod_template,
-        missing_dep: missing_dep(fields),
-        missing_livebook_cookie: missing_livebook_cookie(k8s_pod_template)
+        missing_dep: missing_dep(fields)
       )
 
     {:ok, ctx, editor: [source: k8s_pod_template, language: "yaml", visible: backend == "k8s"]}
@@ -63,8 +59,7 @@ defmodule KinoFLAME.RunnerCell do
       fields: ctx.assigns.fields,
       warnings: ctx.assigns.warnings,
       all_envs: ctx.assigns.all_envs,
-      missing_dep: ctx.assigns.missing_dep,
-      missing_livebook_cookie: ctx.assigns.missing_livebook_cookie
+      missing_dep: ctx.assigns.missing_dep
     }
 
     {:ok, payload, ctx}
@@ -114,17 +109,7 @@ defmodule KinoFLAME.RunnerCell do
 
   @impl true
   def handle_editor_change(source, ctx) do
-    missing_livebook_cookie = missing_livebook_cookie(source)
-
-    if missing_livebook_cookie != ctx.assigns.missing_livebook_cookie do
-      broadcast_event(ctx, "missing_livebook_cookie", %{"is_missing" => missing_livebook_cookie})
-    end
-
-    {:ok,
-     assign(ctx,
-       k8s_pod_template: source,
-       missing_livebook_cookie: missing_livebook_cookie
-     )}
+    {:ok, assign(ctx, k8s_pod_template: source)}
   end
 
   defp update_field(ctx, field, value) do
@@ -258,12 +243,31 @@ defmodule KinoFLAME.RunnerCell do
     multiline_k8s_pod_template =
       {:sigil_y, [delimiter: ~S["""]], [{:<<>>, [], [attrs["k8s_pod_template"] <> "\n"]}, []]}
 
+    envs =
+      [
+        {"LIVEBOOK_COOKIE",
+         quote do
+           Node.get_cookie()
+         end}
+      ]
+
+    env = {:%{}, [], envs}
+
+    env =
+      if attrs["initialize_pythonx"] do
+        quote do
+          unquote(env) |> Map.merge(Pythonx.install_env())
+        end
+      else
+        env
+      end
+
     backend_ast =
-      quote do: {FLAMEK8sBackend, runner_pod_tpl: pod_template}
+      quote do: {FLAMEK8sBackend, manifest: manifest, env: unquote(env)}
 
     quote do
       import YamlElixir.Sigil
-      pod_template = unquote(multiline_k8s_pod_template)
+      manifest = unquote(multiline_k8s_pod_template)
       unquote(to_quoted_pool(attrs, backend_ast))
     end
   end
@@ -328,8 +332,4 @@ defmodule KinoFLAME.RunnerCell do
   end
 
   defp missing_dep(_fields), do: nil
-
-  defp missing_livebook_cookie(k8s_pod_template) do
-    not (k8s_pod_template =~ ~r|\sLIVEBOOK_COOKIE\s|)
-  end
 end

@@ -20,9 +20,6 @@ export default function App({ ctx, payload }) {
   const [allEnvs, setAllEnvs] = useState(payload.all_envs);
   const [showHelpBox, setShowHelpBox] = useState(false);
   const [missingDep, setMissingDep] = useState(payload.missing_dep);
-  const [missingLivebookCookie, setMissingLivebookCookie] = useState(
-    payload.missing_livebook_cookie,
-  );
   const warnings = payload.warnings;
 
   useEffect(() => {
@@ -32,10 +29,6 @@ export default function App({ ctx, payload }) {
 
     ctx.handleEvent("missing_dep", ({ dep }) => {
       setMissingDep(dep);
-    });
-
-    ctx.handleEvent("missing_livebook_cookie", ({ is_missing }) => {
-      setMissingLivebookCookie(is_missing);
     });
 
     ctx.handleEvent("set_all_envs", ({ all_envs }) => {
@@ -114,15 +107,6 @@ export default function App({ ctx, payload }) {
           </p>
           <pre>
             <code>{missingDep}</code>
-          </pre>
-        </MessageBox>
-      )}
-      {fields.backend == "k8s" && missingLivebookCookie && (
-        <MessageBox variant="warning">
-          To successfully connect to the runtime, your Pod template must declare
-          the following env variable:
-          <pre>
-            <code>{`\nenv:\n- name: LIVEBOOK_COOKIE\n  value: #{Node.get_cookie()}`}</code>
           </pre>
         </MessageBox>
       )}

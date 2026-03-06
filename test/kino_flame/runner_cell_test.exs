@@ -50,7 +50,7 @@ defmodule KinoFLAME.RunnerCellTest do
                ~s'''
                import YamlElixir.Sigil
 
-               pod_template = ~y"""
+               manifest = ~y"""
                apiVersion: v1
                kind: Pod
                metadata:
@@ -58,9 +58,6 @@ defmodule KinoFLAME.RunnerCellTest do
                spec:
                  containers:
                    - name: livebook-runtime
-                     env:
-                       - name: LIVEBOOK_COOKIE
-                         value: \#{Node.get_cookie()}
                """
 
                Kino.start_child(
@@ -74,7 +71,8 @@ defmodule KinoFLAME.RunnerCellTest do
                   idle_shutdown_after: :timer.minutes(1),
                   timeout: :infinity,
                   track_resources: true,
-                  backend: {FLAMEK8sBackend, runner_pod_tpl: pod_template}}
+                  backend:
+                    {FLAMEK8sBackend, manifest: manifest, env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()}}}
                )\
                '''
     after
@@ -178,7 +176,7 @@ defmodule KinoFLAME.RunnerCellTest do
                ~s'''
                import YamlElixir.Sigil
 
-               pod_template = ~y"""
+               manifest = ~y"""
                some_template
                """
 
@@ -193,7 +191,51 @@ defmodule KinoFLAME.RunnerCellTest do
                   idle_shutdown_after: :timer.minutes(1),
                   timeout: :infinity,
                   track_resources: true,
-                  backend: {FLAMEK8sBackend, runner_pod_tpl: pod_template}}
+                  backend:
+                    {FLAMEK8sBackend, manifest: manifest, env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()}}}
+               )\
+               '''
+    end
+
+    test "Kubernetes with pythonx" do
+      attrs = %{"backend" => "k8s", "name" => "runner", "initialize_pythonx" => true}
+
+      {_kino, source} = start_smart_cell!(RunnerCell, attrs)
+
+      assert source ==
+               ~s'''
+               import YamlElixir.Sigil
+
+               manifest = ~y"""
+               apiVersion: v1
+               kind: Pod
+               metadata:
+                 generateName: livebook-flame-runner-
+               spec:
+                 containers:
+                   - name: livebook-runtime
+               """
+
+               Kino.start_child(
+                 {FLAME.Pool,
+                  name: :runner,
+                  code_sync: [
+                    start_apps: true,
+                    sync_beams: Kino.beam_paths(),
+                    compress: false,
+                    copy_paths: Pythonx.install_paths()
+                  ],
+                  min: 0,
+                  max: 1,
+                  max_concurrency: 10,
+                  boot_timeout: :timer.minutes(3),
+                  idle_shutdown_after: :timer.minutes(1),
+                  timeout: :infinity,
+                  track_resources: true,
+                  backend:
+                    {FLAMEK8sBackend,
+                     manifest: manifest,
+                     env: %{"LIVEBOOK_COOKIE" => Node.get_cookie()} |> Map.merge(Pythonx.install_env())}}
                )\
                '''
     end
@@ -208,16 +250,6 @@ defmodule KinoFLAME.RunnerCellTest do
 
     assert_smart_cell_update(kino, %{"min" => 5}, source)
     assert source =~ "min: 5"
-  end
-
-  test "sets missing_livebook_cookie if env var is missing" do
-    {kino, _source} = start_smart_cell!(RunnerCell, %{})
-
-    # TODO: use push_smart_cell_editor_source once released https://github.com/livebook-dev/kino/pull/468
-    # (no need to bump :kino requirement, because it's test-only)
-    send(kino.pid, {:editor_source, "some-source-without-env"})
-
-    assert_broadcast_event(kino, "missing_livebook_cookie", %{"is_missing" => true})
   end
 
   test "when available env vars change notifies the client" do
