@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.6](https://github.com/livebook-dev/kino_flame/tree/v0.1.6) (2026-03-06)
+
+### Added
+
+* Added support for initializing Pythonx environment on the runner ([#7](https://github.com/livebook-dev/kino_flame/pull/7))
+
 ## [v0.1.5](https://github.com/livebook-dev/kino_flame/tree/v0.1.5) (2024-09-19)
 
 ### Added
